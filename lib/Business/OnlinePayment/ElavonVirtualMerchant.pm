@@ -2,6 +2,7 @@ package Business::OnlinePayment::ElavonVirtualMerchant;
 use base qw(Business::OnlinePayment::viaKLIX);
 
 use strict;
+use warnings;
 use vars qw( $VERSION %maxlength );
 
 $VERSION = '0.03';
@@ -69,10 +70,9 @@ sub set_defaults {
 
     $self->SUPER::set_defaults(%opts);
     # standard B::OP methods/data
-    $self->server("www.myvirtualmerchant.com");
-    $self->port("443");
-    $self->path("/VirtualMerchant/process.do");
-
+    $self->server('www.myvirtualmerchant.com');
+    $self->port('443');
+    $self->path('/VirtualMerchant/process.do');
 }
 
 =head2 _map_fields
@@ -167,18 +167,20 @@ sub submit {
     $optional{CC_CCCREDIT} = $optional{CC_CCSALE};
 
     my $type_action = $self->transaction_type(). '_'. $content{ssl_transaction_type};
-    unless ( exists($required{$type_action}) ) {
-      $self->error_message("Elavon can't handle transaction type: ".
-        "$content{action} on " . $self->transaction_type() );
-      $self->is_success(0);
-      return;
+    unless ( exists( $required{$type_action} ) ) {
+        $self->error_message( q{Elavon can't handle transaction type: }
+                . $content{action}
+                . q{ on }
+                . $self->transaction_type() );
+        $self->is_success(0);
+        return;
     }
 
-    my $expdate_mmyy = $self->expdate_mmyy( $content{"expiration"} );
+    my $expdate_mmyy = $self->expdate_mmyy( $content{'expiration'} );
     my $zip          = $content{'zip'};
     $zip =~ s/[^[:alnum:]]//g;
 
-    my $cvv2indicator = $content{"cvv2"} ? 1 : 9; # 1 = Present, 9 = Not Present
+    my $cvv2indicator = $content{'cvv2'} ? 1 : 9; # 1 = Present, 9 = Not Present
 
     $self->_revmap_fields(
 
@@ -220,11 +222,11 @@ sub submit {
                                     @{$optional{$type_action}},
                                   );
 
-    $params{$_} = substr($params{$_},0,$maxlength{$_})
-      foreach grep exists($maxlength{$_}), keys %params;
+    $params{$_} = substr( $params{$_}, 0, $maxlength{$_} )
+        for grep exists( $maxlength{$_} ), keys %params;
 
-    foreach ( keys ( %{($self->{_defaults})} ) ) {
-      $params{$_} = $self->{_defaults}->{$_} unless exists($params{$_});
+    for ( keys( %{ ( $self->{_defaults} ) } ) ) {
+        $params{$_} = $self->{_defaults}->{$_} unless exists( $params{$_} );
     }
 
     $params{ssl_test_mode}='true' if $self->test_transaction;
@@ -235,8 +237,8 @@ sub submit {
     $self->required_fields(@{$required{$type_action}});
     
     warn join("\n", map{ "$_ => $params{$_}" } keys(%params)) if $self->debug > 1;
-    my ( $page, $resp, %resp_headers ) = 
-      $self->https_post( %params );
+
+    my ( $page, $resp, %resp_headers ) = $self->https_post( %params );
 
     $self->response_code( $resp );
     $self->response_page( $page );
@@ -256,8 +258,7 @@ sub submit {
     $self->authorization( $results{ ssl_approval_code } );
     $self->error_message( $results{ errorMessage } || $results{ ssl_result_message } );
 
-
-    if ( $resp =~ /^(HTTP\S+ )?200/ && $status eq "0" ) {
+    if ( $resp =~ /^(HTTP\S+ )?200/ && $status eq '0' ) {
         $self->is_success(1);
     } else {
         $self->is_success(0);
