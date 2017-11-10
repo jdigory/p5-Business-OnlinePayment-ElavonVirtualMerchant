@@ -1,4 +1,4 @@
-Business-OnlinePayment-ElavonVirtualMerchant version 0.03
+Business-OnlinePayment-ElavonVirtualMerchant version 0.04
 =========================================================
 
 This module provides an interface to the Elavon (formerly Nova Information
@@ -24,8 +24,8 @@ TESTING
 
 You can test against the Elavon demo server by setting the environment variables:
 
-  ELAVON_SERVER=demo.myvirtualmerchant.com
-  ELAVON_PATH=/VirtualMerchantDemo/process.do (The path is not the same as on the live server.)
+  ELAVON_SERVER=api.demo.convergepay.com
+  ELAVON_PATH=/VirtualMerchantDemo/processxml.do (The path is not the same as on the live server.)
   ELAVON_ACCOUNT and ELAVON_USERID will be the user ID allocated to you by Elavon's internet support group.
   ELAVON_PASSWORD will be the PIN for that user set when you log into the demo server control panel.
   DEBUG can be set to a variety of values. 0 suppresses most information, while 10 gives you a lot of information about what's being sent and received. This can reveal that you don't have Crypt::SSLeay installed, or your login credentials are wrong.

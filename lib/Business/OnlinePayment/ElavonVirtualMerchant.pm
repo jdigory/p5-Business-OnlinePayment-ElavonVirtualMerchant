@@ -5,7 +5,9 @@ use strict;
 use warnings;
 use vars qw( $VERSION %maxlength );
 
-$VERSION = '0.03';
+use XML::Fast;
+
+$VERSION = '0.04';
 $VERSION = eval $VERSION;
 
 =head1 NAME
@@ -54,8 +56,6 @@ Elavon offers a number of transaction types, including electronic gift card oper
 
 Since the Virtual Merchant API is just a newer version of the viaKlix API, this module subclasses Business::OnlinePayment::viaKlix.
 
-This module does not use Elavon's XML encoding as this doesn't appear to offer any benefit over the standard encoding.
-
 =head1 SUBROUTINES
 
 =head2 set_defaults
@@ -72,7 +72,7 @@ sub set_defaults {
     # standard B::OP methods/data
     $self->server('www.myvirtualmerchant.com');
     $self->port('443');
-    $self->path('/VirtualMerchant/process.do');
+    $self->path('/VirtualMerchant/processxml.do');
 }
 
 =head2 _map_fields
@@ -112,6 +112,26 @@ sub _map_fields {
     $self->content(%content);
 }
 
+sub _revmap_fields {
+    my ( $self, %map ) = @_;
+    my %content = $self->content();
+    foreach ( keys %map ) {
+        if ( ref( $map{$_} ) eq 'HASH' ) {
+            $content{$_} = $map{$_};
+        }
+        elsif ( ref( $map{$_} ) eq 'ARRAY' ) {
+            $content{$_} = $map{$_};
+        }
+        elsif ( ref( $map{$_} ) ) {
+            $content{$_} = ${ $map{$_} };
+        }
+        else {
+            $content{$_} = $content{ $map{$_} };
+        }
+    }
+    $self->content(%content);
+}
+
 =head2 submit
 
 Maps data from Business::OnlinePayment name space to Elavon's, checks that all required fields
@@ -120,23 +140,79 @@ for the transaction type are present, and submits the transaction.  Saves the re
 =cut
 
 %maxlength = (
-        ssl_description        => 255,
-        ssl_invoice_number     => 25,
-        ssl_customer_code      => 17,
+    ssl_card_number        => 19,
+    ssl_cvv2cvc2           => 4,
+    ssl_cvv2cvc2_indicator => 1,
+    ssl_exp_date           => 4,
 
-        ssl_first_name         => 20,
-        ssl_last_name          => 30,
-        ssl_company            => 50,
-        ssl_avs_address        => 30,
-        ssl_city               => 30,
-        ssl_phone              => 20,
+    ssl_amount                 => 13,
+    ssl_discount_amount        => 12,
+    ssl_duty_amount            => 12,
+    ssl_freight_tax_amount     => 12,
+    ssl_freight_tax_rate       => 4,
+    ssl_shipping_amount        => 12,
+    ssl_shipping_company       => 50,
+    ssl_summary_commodity_code => 4,
+    ssl_token                  => 20,
+    ssl_tracking_number        => 25,
+    ssl_transaction_type       => 20,
+    ssl_user_id                => 15,
 
-        ssl_ship_to_first_name => 20,
-        ssl_ship_to_last_name  => 30,
-        ssl_ship_to_company    => 50,
-        ssl_ship_to_address1   => 30,
-        ssl_ship_to_city       => 30,
-        ssl_ship_to_phone      => 20, #though we don't map anything to this...
+    ssl_description         => 255,
+    ssl_invoice_number      => 25,
+    ssl_level3_indicator    => 1,
+    ssl_customer_code       => 17,
+    ssl_customer_vat_number => 13,
+    ssl_vat_invoice_number  => 15,
+
+    ssl_merchant_id            => 15,
+    ssl_merchant_vat_number    => 20,
+    ssl_national_tax_amount    => 12,
+    ssl_national_tax_indicator => 1,
+    ssl_order_date             => 10,
+    ssl_other_fees             => 12,
+    ssl_other_tax              => 12,
+    ssl_pin                    => 64,
+    ssl_salestax               => 8,
+
+    ssl_first_name  => 20,
+    ssl_last_name   => 30,
+    ssl_company     => 50,
+    ssl_avs_address => 30,
+    ssl_avs_zip     => 9,
+    ssl_address2    => 30,
+    ssl_city        => 30,
+    ssl_state       => 2,
+    ssl_phone       => 20,
+    ssl_country     => 3,
+
+    ssl_ship_from_postal_code => 10,
+    ssl_ship_to_first_name    => 20,
+    ssl_ship_to_last_name     => 30,
+    ssl_ship_to_company       => 50,
+    ssl_ship_to_address1      => 30,
+    ssl_ship_to_address2      => 30,
+    ssl_ship_to_city          => 30,
+    ssl_ship_to_country       => 50,
+    ssl_ship_to_phone         => 20,  #though we don't map anything to this...
+    ssl_ship_to_state         => 2,
+    ssl_ship_to_zip           => 10,
+);
+
+my %maxlength_line_item = (
+    ssl_line_Item_alternative_tax    => 15,
+    ssl_line_Item_commodity_code     => 12,  # they said 16
+    ssl_line_item_description        => 25,  # they said 100
+    ssl_line_Item_discount_indicator => 1,
+    ssl_line_Item_extended_total     => 9,
+    ssl_line_Item_product_code       => 12,
+    ssl_line_Item_quantity           => 12,
+    ssl_line_Item_tax_amount         => 12,
+    ssl_line_Item_tax_indicator      => 1,
+    ssl_line_Item_tax_rate           => 5,
+    ssl_line_Item_total              => 12,
+    ssl_line_Item_unit_cost          => 12,
+    ssl_line_Item_unit_of_measure    => 2,
 );
 
 sub submit {
@@ -147,23 +223,60 @@ sub submit {
     my %content = $self->content;
 
     my %required;
-    $required{CC_CCSALE} =  [ qw( ssl_transaction_type ssl_merchant_id ssl_pin
-                                ssl_amount ssl_card_number ssl_exp_date
-                                ssl_cvv2cvc2_indicator 
-                              ) ];
+    $required{CC_CCSALE}
+        = [ qw( ssl_transaction_type ssl_merchant_id ssl_pin ssl_amount ssl_card_number ssl_exp_date ) ];
     $required{CC_CCCREDIT} = $required{CC_CCSALE};
     my %optional;
-    $optional{CC_CCSALE} =  [ qw( ssl_user_id ssl_salestax ssl_cvv2cvc2
-                                ssl_description ssl_invoice_number
-                                ssl_customer_code ssl_company ssl_first_name
-                                ssl_last_name ssl_avs_address ssl_address2
-                                ssl_city ssl_state ssl_avs_zip ssl_country
-                                ssl_phone ssl_email ssl_ship_to_company
-                                ssl_ship_to_first_name ssl_ship_to_last_name
-                                ssl_ship_to_address1 ssl_ship_to_city
-                                ssl_ship_to_state ssl_ship_to_zip
-                                ssl_ship_to_country
-                              ) ];
+    $optional{CC_CCSALE} = [
+        qw(
+            ssl_invoice_number
+            ssl_description
+            ssl_customer_code
+            ssl_salestax
+            ssl_token
+            ssl_cvv2cvc2_indicator
+            ssl_cvv2cvc2
+            ssl_avs_zip
+            ssl_avs_address
+            ssl_ship_to_zip
+            ssl_ship_to_country
+            ssl_shipping_amount
+            ssl_ship_from_postal_code
+            ssl_discount_amount
+            ssl_duty_amount
+            ssl_national_tax_indicator
+            ssl_national_tax_amount
+            ssl_order_date
+            ssl_other_tax
+            ssl_summary_commodity_code
+            ssl_merchant_vat_number
+            ssl_customer_vat_number
+            ssl_freight_tax_amount
+            ssl_freight_tax_rate
+            ssl_vat_invoice_number
+            ssl_tracking_number
+            ssl_shipping_company
+            ssl_other_fees
+            ssl_level3_indicator
+            ssl_company
+            ssl_first_name
+            ssl_last_name
+            ssl_address2
+            ssl_city
+            ssl_state
+            ssl_country
+            ssl_phone
+            ssl_email
+            ssl_ship_to_company
+            ssl_ship_to_first_name
+            ssl_ship_to_last_name
+            ssl_ship_to_address1
+            ssl_ship_to_address2
+            ssl_ship_to_city
+            ssl_ship_to_state
+            LineItemProducts
+            )
+    ];
     $optional{CC_CCCREDIT} = $optional{CC_CCSALE};
 
     my $type_action = $self->transaction_type(). '_'. $content{ssl_transaction_type};
@@ -222,6 +335,17 @@ sub submit {
                                     @{$optional{$type_action}},
                                   );
 
+    my $products = [];
+    if ( $content{products} and ref $content{products} eq 'ARRAY' ) {
+        for my $prod ( @{ $content{products} } ) {
+            next unless ref $prod;
+            $prod->{$_} = substr( $prod->{$_}, 0, $maxlength_line_item{$_} )
+                for grep exists $maxlength_line_item{$_}, keys %$prod;
+        }
+        $params{LineItemProducts} = { product => $content{products} };
+        $params{ssl_level3_indicator} = 'Y';
+    }
+
     $params{$_} = substr( $params{$_}, 0, $maxlength{$_} )
         for grep exists( $maxlength{$_} ), keys %params;
 
@@ -238,17 +362,20 @@ sub submit {
     
     warn join("\n", map{ "$_ => $params{$_}" } keys(%params)) if $self->debug > 1;
 
-    my ( $page, $resp, %resp_headers ) = $self->https_post( %params );
+    my $xml = { xmldata => hash2xml( { txn => \%params } ) };
+
+    my ( $page, $resp, %resp_headers ) = $self->https_post( $xml );
 
     $self->response_code( $resp );
     $self->response_page( $page );
     $self->response_headers( \%resp_headers );
 
     warn "$page\n" if $self->debug > 1;
-    # $page should contain key/value pairs
+    # $page contains XML
 
-    my $status ='';
-    my %results = map { s/\s*$//; split '=', $_, 2 } grep { /=/ } split '^', $page;
+    my $status = '';
+    my $result_hash = xml2hash $page;
+    my %results = %{$result_hash->{txn}};
 
     # AVS and CVS values may be set on success or failure
     $self->avs_code( $results{ssl_avs_response} );
@@ -258,7 +385,7 @@ sub submit {
     $self->authorization( $results{ ssl_approval_code } );
     $self->error_message( $results{ errorMessage } || $results{ ssl_result_message } );
 
-    if ( $resp =~ /^(HTTP\S+ )?200/ && $status eq '0' ) {
+    if ( $resp =~ /^(HTTP\S+ )?200/ and $status eq '0' ) {
         $self->is_success(1);
     } else {
         $self->is_success(0);
@@ -272,9 +399,11 @@ __END__
 
 Business::OnlinePayment, Business::OnlinePayment::viaKlix, Elavon Virtual Merchant Developers' Guide
 
-=head1 AUTHOR
+=head1 AUTHORS
 
 Richard Siddall, E<lt>elavon@elirion.netE<gt>
+
+Josh Lavin, E<lt>digory@cpan.orgE<gt>
 
 =head1 BUGS
 

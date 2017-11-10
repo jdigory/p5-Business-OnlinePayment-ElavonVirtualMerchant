@@ -27,7 +27,7 @@ my $driver  = "ElavonVirtualMerchant";
 
     is( $obj->server, $server, "server($server)" );
     is( $obj->port, "443", "port(443)" );
-    is( $obj->path, "/VirtualMerchant/process.do", "VirtualMerchant/process.do" );
+    is( $obj->path, "/VirtualMerchant/processxml.do", "VirtualMerchant/processxml.do" );
 }
 
 {    # expdate

@@ -1,6 +1,6 @@
 --- #YAML:1.0
 name:               Business-OnlinePayment-ElavonVirtualMerchant
-version:            0.03
+version:            0.04
 abstract:           Elavon Virtual Merchant backend for Business::OnlinePayment
 author:
     - Richard Siddall <elavon@elirion.net>

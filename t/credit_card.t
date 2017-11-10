@@ -1,9 +1,11 @@
-#!/usr/bin/perl
+#!/bin/env perl
 
 use strict;
 use warnings;
+use lib 'lib';
 use POSIX qw(strftime);
 use Test::More;
+use Test::Deep;
 
 use Business::OnlinePayment;
 
@@ -33,9 +35,9 @@ my %content = (
     action         => "Normal Authorization",
     type           => "VISA",
     description    => "Business::OnlinePayment::ElavonVirtualMerchant test",
-    card_number    => "4111111111111111",
+    card_number    => "4124939999999990",
     cvv2           => "123",
-    expiration     => "12/" . strftime( "%y", localtime ),
+    expiration     => "12/19",
     amount         => "0.01",
     invoice_number => "Test1",
     first_name     => "Tofu",
@@ -53,13 +55,13 @@ my %content = (
     $tx->content(%content);
     tx_check(
         $tx,
-        desc          => "valid card_number",
+        desc          => 'valid card_number',
         is_success    => 1,
-        result_code   => "0",
-        authorization => "123456",
-        avs_code      => "X",
-        cvv2_response => "P",
-        order_number  => "00000000-0000-0000-0000-00000000000",
+        result_code   => 0,
+        authorization => re('\d+'),
+        avs_code      => 'N',
+        cvv2_response => 'U',
+        order_number  => re('\w+'),
     );
 }
 
@@ -71,7 +73,7 @@ my %content = (
         $tx,
         desc          => "invalid card_number",
         is_success    => 0,
-        result_code   => 5000,
+        result_code   => 9999,
         authorization => undef,
         avs_code      => undef,
         cvv2_response => undef,
@@ -169,17 +171,17 @@ sub tx_check {
     my $tx = shift;
     my %o  = @_;
 
-    $tx->test_transaction(1);
+    #$tx->test_transaction(1);
     $tx->server($ENV{"ELAVON_SERVER"}) if defined($ENV{"ELAVON_SERVER"});
     $tx->path($ENV{"ELAVON_PATH"}) if defined($ENV{"ELAVON_PATH"});
     $tx->submit;
 
     is( $tx->is_success,    $o{is_success},    "$o{desc}: " . tx_info($tx) );
     is( $tx->result_code,   $o{result_code},   "result_code(): RESULT" );
-    is( $tx->authorization, $o{authorization}, "authorization() / AUTHCODE" );
+    cmp_deeply( $tx->authorization, $o{authorization}, "authorization() / AUTHCODE" );
     is( $tx->avs_code,  $o{avs_code},  "avs_code() / AVSADDR and AVSZIP" );
     is( $tx->cvv2_response, $o{cvv2_response}, "cvv2_response() / CVV2MATCH" );
-    is( $tx->order_number, $o{order_number}, "order_number() / PNREF" );
+    cmp_deeply( $tx->order_number, $o{order_number}, "order_number() / PNREF" );
 }
 
 sub tx_info {
