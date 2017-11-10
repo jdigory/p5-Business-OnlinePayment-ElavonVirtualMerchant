@@ -1,4 +1,5 @@
 Changes
+lib/Business/OnlinePayment/ElavonVirtualMerchant.pm
 Makefile.PL
 MANIFEST
 README
@@ -8,5 +9,4 @@ t/credit_card.t
 t/live_card.t
 t/pod-coverage.t
 t/pod.t
-ElavonVirtualMerchant.pm
 META.yml                                 Module meta-data (added by MakeMaker)
